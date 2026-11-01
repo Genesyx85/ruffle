@@ -1248,12 +1248,8 @@ impl<'a, 'gc> Activation<'a, 'gc> {
 
     fn action_get_time(&mut self) -> Result<FrameControl<'gc>, Error<'gc>> {
         self.context.times_get_time_called += 1;
-        // heuristic to detect busy loops used for delays and slowly progress fake time
-        if self.context.times_get_time_called >= 20
-            && self.context.times_get_time_called.is_multiple_of(5)
-        {
-            *self.context.time_offset += 1;
-        }
+        // Ximera : pas de faux temps. Le code brouille du jeu appelle getTimer des milliers
+        // de fois : cette protection contre les boucles d'attente freinait toute la cadence.
 
         let time = Instant::now()
             .duration_since(self.context.start_time)
