@@ -742,27 +742,35 @@ impl<'gc> Object<'gc> {
         XIMERA_PROTO_MEMO.with(|memo| memo.borrow_mut().clear());
     }
 
-    /// Ximera : vrai si ce clip a une methode `name`. Les milliers de clips sans
-    /// onEnterFrame partagent quelques prototypes : on ne les interroge qu'une fois par image.
+    /// Ximera : vrai si ce clip a une des methodes `names`. Les milliers de clips partagent
+    /// quelques prototypes : on ne les interroge qu'une fois par image (`group` = cette liste).
     pub fn ximera_has_method(
         self,
-        name: AvmString<'gc>,
+        names: &[AvmString<'gc>],
+        group: u8,
         activation: &mut Activation<'_, 'gc>,
     ) -> bool {
         let case_sensitive = activation.is_case_sensitive();
-        if self.0.borrow().properties.get(name, case_sensitive).is_some() {
-            return true;
+        {
+            let read = self.0.borrow();
+            if names.iter().any(|name| read.properties.get(*name, case_sensitive).is_some()) {
+                return true;
+            }
         }
 
         let Value::Object(proto) = self.proto(activation) else {
             return false;
         };
-        let key = (gc_arena::Gc::as_ptr(proto.0) as *const () as usize, case_sensitive);
+        let key = (
+            gc_arena::Gc::as_ptr(proto.0) as *const () as usize,
+            case_sensitive,
+            group,
+        );
         if let Some(found) = XIMERA_PROTO_MEMO.with(|memo| memo.borrow().get(&key).copied()) {
             return found;
         }
 
-        let found = proto.has_property(activation, name);
+        let found = names.iter().any(|name| proto.has_property(activation, *name));
         XIMERA_PROTO_MEMO.with(|memo| memo.borrow_mut().insert(key, found));
         found
     }
@@ -1095,6 +1103,6 @@ fn parse_array_index(name: AvmString<'_>) -> Option<i32> {
 }
 
 thread_local! {
-    static XIMERA_PROTO_MEMO: std::cell::RefCell<std::collections::HashMap<(usize, bool), bool>> =
+    static XIMERA_PROTO_MEMO: std::cell::RefCell<std::collections::HashMap<(usize, bool, u8), bool>> =
         std::cell::RefCell::new(std::collections::HashMap::new());
 }
