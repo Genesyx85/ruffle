@@ -42,6 +42,7 @@ pub use property_map::PropertyMap;
 use ruffle_common::avm_string::AvmString;
 use ruffle_wstr::WStr;
 pub use runtime::{Avm1, chrono_note};
+pub use object_reference::MovieClipReference;
 pub use value::Value;
 
 #[macro_export]
