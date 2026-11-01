@@ -195,7 +195,6 @@ impl<'gc> Avm1<'gc> {
             ),
         );
         let constant_pool = context.avm1.constant_pool;
-        let debut_chrono = web_time::Instant::now();
         let mut child_activation = Activation::from_action(
             context,
             ActivationIdentifier::root(name),
@@ -210,10 +209,6 @@ impl<'gc> Avm1<'gc> {
         if let Err(e) = child_activation.run_actions(code) {
             Self::handle_error(&mut child_activation, e);
         }
-        chrono_note(
-            format!("image {} {}", name, &*active_clip.path()),
-            debut_chrono.elapsed().as_secs_f64() * 1000.0,
-        );
     }
 
     /// Add a stack frame that executes code in globals scope
@@ -338,16 +333,11 @@ impl<'gc> Avm1<'gc> {
             return;
         }
 
-        let debut_chrono = web_time::Instant::now();
         let name_utf8 = &name.to_utf8_lossy();
         let mut activation =
             Activation::from_nothing(context, ActivationIdentifier::root(name_utf8), active_clip);
 
         let _ = obj.call_method(name, args, &mut activation, ExecutionReason::Special);
-        chrono_note(
-            format!("methode {} {}", name, &*active_clip.path()),
-            debut_chrono.elapsed().as_secs_f64() * 1000.0,
-        );
     }
 
     pub fn notify_system_listeners(
