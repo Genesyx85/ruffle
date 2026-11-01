@@ -178,6 +178,9 @@ pub struct MovieClipData<'gc> {
 
     drop_target: Lock<Option<DisplayObject<'gc>>>,
 
+    /// Ximera : reference gardee, pour ne pas recalculer le chemin du clip a chaque usage.
+    avm1_reference: Lock<Option<crate::avm1::MovieClipReference<'gc>>>,
+
     /// A DisplayObject (doesn't need to be visible) to use for hit tests instead of this clip.
     hit_area: Lock<Option<DisplayObject<'gc>>>,
 
@@ -259,6 +262,7 @@ impl<'gc> MovieClipData<'gc> {
             has_pending_script: Cell::new(false),
             queued_goto: Cell::new(None),
             drop_target: Lock::new(None),
+            avm1_reference: Lock::new(None),
             queued_tags: Default::default(),
             hit_area: Lock::new(None),
             attached_audio: Lock::new(None),
@@ -844,6 +848,18 @@ impl<'gc> MovieClip<'gc> {
 
     pub fn programmatically_played(self) -> bool {
         self.0.programmatically_played()
+    }
+
+    pub fn avm1_reference(self) -> Option<crate::avm1::MovieClipReference<'gc>> {
+        self.0.avm1_reference.get()
+    }
+
+    pub fn set_avm1_reference(
+        self,
+        mc: &Mutation<'gc>,
+        reference: crate::avm1::MovieClipReference<'gc>,
+    ) {
+        unlock!(Gc::write(mc, self.0), MovieClipData, avm1_reference).set(Some(reference));
     }
 
     pub fn drop_target(self) -> Option<DisplayObject<'gc>> {
