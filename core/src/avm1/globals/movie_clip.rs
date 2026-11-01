@@ -790,21 +790,49 @@ fn attach_movie<'gc>(
         return Ok(Value::Undefined);
     }
 
-    // Ximera : Flash trouve aussi les symboles des bibliotheques importees (decor des cartes).
+    // Ximera : Flash trouve aussi les symboles des bibliotheques importees en chaine
+    // (decor des cartes et equipements). L'ordre est celui des imports des fichiers du jeu.
+    const SOL: &[&str] = &["/clips/gfx/g1.swf", "/clips/gfx/g2.swf"];
+    const OBJETS: &[&str] = &[
+        "/clips/gfx/o6.swf", "/clips/gfx/o2.swf", "/clips/gfx/o9.swf", "/clips/gfx/o8.swf",
+        "/clips/gfx/o7.swf", "/clips/gfx/o5.swf", "/clips/gfx/o4.swf", "/clips/gfx/o3.swf",
+        "/clips/gfx/o1.swf", "/clips/gfx/o12.swf", "/clips/gfx/o11.swf", "/clips/gfx/o10.swf",
+        "/clips/gfx/cell.swf",
+    ];
+    const CELLULES: &[&str] = &["/clips/gfx/cell.swf"];
+    const ACCESSOIRES: &[&str] = &[
+        "/clips/sprites/accessories/a1.swf", "/clips/sprites/accessories/a2.swf",
+        "/clips/sprites/accessories/a3.swf", "/clips/sprites/accessories/a4.swf",
+        "/clips/sprites/accessories/a5.swf", "/clips/sprites/accessories/a7.swf",
+        "/clips/sprites/accessories/a8.swf", "/clips/sprites/accessories/a9.swf",
+        "/clips/sprites/accessories/a6.swf",
+    ];
     let gc = activation.gc();
     let library = &activation.context.library;
-    let own_library = library.library_for_movie(movie_clip.movie());
+    let own_movie = movie_clip.movie();
+    let own_url = own_movie.url();
+    let sources: &[&str] = if own_url.ends_with("/clips/ground.swf") {
+        SOL
+    } else if own_url.ends_with("/clips/objects.swf") {
+        OBJETS
+    } else if own_url.ends_with("/clips/cells.swf") {
+        CELLULES
+    } else if export_name.to_utf8_lossy().contains('_') {
+        ACCESSOIRES
+    } else {
+        &[]
+    };
+    let own_library = library.library_for_movie(own_movie);
     let source_library = own_library
         .filter(|l| l.character_by_export_name(&export_name).is_some())
         .or_else(|| {
-            library
-                .known_movies()
-                .filter(|movie| movie.url().contains("/clips/gfx/"))
-                .find_map(|movie| {
-                    library
-                        .library_for_movie(movie)
-                        .filter(|l| l.character_by_export_name(&export_name).is_some())
-                })
+            sources.iter().find_map(|source| {
+                library
+                    .known_movies()
+                    .find(|movie| movie.url().ends_with(source))
+                    .and_then(|movie| library.library_for_movie(movie))
+                    .filter(|l| l.character_by_export_name(&export_name).is_some())
+            })
         })
         .or(own_library);
 
