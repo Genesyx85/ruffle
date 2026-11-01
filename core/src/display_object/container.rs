@@ -887,7 +887,12 @@ impl<'gc> ChildContainer<'gc> {
                 self.render_list
                     .iter()
                     .copied()
-                    .find(|child| child.name().is_some_and(|n| n.eq_ignore_case(name)))
+                    // Ximera : la longueur d'abord, comparer sans la casse coute cher.
+                    .find(|child| {
+                        child
+                            .name()
+                            .is_some_and(|n| n.len() == name.len() && n.eq_ignore_case(name))
+                    })
             }
         }
     }
