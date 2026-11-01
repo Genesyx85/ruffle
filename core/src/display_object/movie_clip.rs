@@ -3004,6 +3004,15 @@ impl<'gc> TInteractiveObject<'gc> for MovieClip<'gc> {
             // (e.g., clip.onEnterFrame = foo).
             if self.should_fire_event_handlers(context, event)
                 && let Some(name) = event.method_name(&context.strings)
+                // Ximera : pas d'appel vide pour les clips sans onEnterFrame.
+                && (event != ClipEvent::EnterFrame || {
+                    let mut activation = Avm1Activation::from_nothing(
+                        context,
+                        ActivationIdentifier::root("[Ximera]"),
+                        self.into(),
+                    );
+                    object.ximera_has_method(name, &mut activation)
+                })
             {
                 context.action_queue.queue_action(
                     self.into(),
