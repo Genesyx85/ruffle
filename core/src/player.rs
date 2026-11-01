@@ -2106,6 +2106,16 @@ impl Player {
 
     #[instrument(level = "debug", skip_all)]
     pub fn render(&mut self) {
+        // Ximera : chronometre provisoire du dessin.
+        let timer_chrono = Instant::now();
+        self.render_inner();
+        crate::avm1::chrono_note(
+            "TOTAL dessin".to_string(),
+            timer_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
+    }
+
+    fn render_inner(&mut self) {
         let invalidated = self.enter_arena(|_, gc_root, _| gc_root.stage.invalidated());
 
         if invalidated {
