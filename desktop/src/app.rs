@@ -612,13 +612,7 @@ impl ApplicationHandler<RuffleEvent> for App {
 
         match (&mut self.main_window, event) {
             (Some(main_window), RuffleEvent::TaskPoll(task)) => {
-                // Ximera : chronometre provisoire des taches (chargements).
-                let timer_chrono = Instant::now();
                 main_window.player.poll(task);
-                ruffle_core::chrono_note(
-                    "BOUCLE taches".to_string(),
-                    timer_chrono.elapsed().as_secs_f64() * 1000.0,
-                );
             }
 
             (Some(main_window), RuffleEvent::OnMetadata(swf_header)) => {
@@ -740,12 +734,7 @@ impl ApplicationHandler<RuffleEvent> for App {
         enter_runtime!(self);
 
         if let Some(main_window) = &mut self.main_window {
-            let timer_chrono = Instant::now();
             main_window.about_to_wait(self.gilrs.as_mut());
-            ruffle_core::chrono_note(
-                "BOUCLE attente".to_string(),
-                timer_chrono.elapsed().as_secs_f64() * 1000.0,
-            );
 
             // The event loop is finished; let's find out how long we need to wait for.
             // We don't need to worry about earlier update requests, as it's the
