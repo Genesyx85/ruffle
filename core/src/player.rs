@@ -609,8 +609,14 @@ impl Player {
                 .audio_skew_time(context.audio, cur_frame_offset)
         });
         self.frame_accumulator += FloatDuration::from_secs(audio_skew);
+        crate::avm1::chrono_note("AUDIO decalage".to_string(), audio_skew.abs() * 1000.0);
 
+        let timer_chrono = Instant::now();
         self.update_sockets();
+        crate::avm1::chrono_note(
+            "TOTAL reseau".to_string(),
+            timer_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
         self.update_net_connections();
         let timer_chrono = Instant::now();
         self.update_timers(dt);
@@ -1058,6 +1064,17 @@ impl Player {
     /// Handle an event sent into the player from the external windowing system
     /// or an HTML element.
     pub fn handle_event(&mut self, event: PlayerEvent) -> bool {
+        // Ximera : chronometre provisoire des evenements.
+        let timer_chrono = Instant::now();
+        let resultat = self.handle_event_inner(event);
+        crate::avm1::chrono_note(
+            "TOTAL evenements".to_string(),
+            timer_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
+        resultat
+    }
+
+    fn handle_event_inner(&mut self, event: PlayerEvent) -> bool {
         match event {
             PlayerEvent::FocusGained | PlayerEvent::FocusLost => self.handle_focus_event(event),
             PlayerEvent::KeyDown { .. }
@@ -2469,7 +2486,12 @@ impl Player {
         self.update_mouse_state(EnumSet::empty(), false, &mut false);
 
         // GC
+        let timer_chrono = Instant::now();
         self.gc_arena.borrow_mut().collect_debt();
+        crate::avm1::chrono_note(
+            "TOTAL memoire".to_string(),
+            timer_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
 
         rval
     }
