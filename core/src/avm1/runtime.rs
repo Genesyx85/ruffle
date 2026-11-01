@@ -46,7 +46,7 @@ pub fn chrono_note(cle: String, ms: f64) {
         if maintenant.duration_since(debut).as_secs() >= 5 {
             let mut lignes: Vec<_> = chrono.1.drain().collect();
             lignes.sort_by(|a, b| b.1.0.total_cmp(&a.1.0));
-            for (cle, (ms, nombre)) in lignes.iter().take(30) {
+            for (cle, (ms, nombre)) in lignes.iter().take(45) {
                 tracing::error!("CHRONO {ms:.0} ms {nombre} fois {cle}");
             }
             chrono.0 = None;
@@ -206,9 +206,14 @@ impl<'gc> Avm1<'gc> {
             None,
             &[],
         );
+        let debut_chrono = web_time::Instant::now();
         if let Err(e) = child_activation.run_actions(code) {
             Self::handle_error(&mut child_activation, e);
         }
+        chrono_note(
+            format!("{} [image]", &*active_clip.path()),
+            debut_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
     }
 
     /// Add a stack frame that executes code in globals scope
@@ -333,11 +338,16 @@ impl<'gc> Avm1<'gc> {
             return;
         }
 
+        let debut_chrono = web_time::Instant::now();
         let name_utf8 = &name.to_utf8_lossy();
         let mut activation =
             Activation::from_nothing(context, ActivationIdentifier::root(name_utf8), active_clip);
 
         let _ = obj.call_method(name, args, &mut activation, ExecutionReason::Special);
+        chrono_note(
+            format!("{} {}", &*active_clip.path(), name),
+            debut_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
     }
 
     pub fn notify_system_listeners(
