@@ -562,6 +562,10 @@ impl Player {
             let timer = Instant::now();
             self.run_frame();
             let elapsed = timer.elapsed().as_millis() as f64;
+            crate::avm1::chrono_note(
+                "TOTAL images".to_string(),
+                timer.elapsed().as_secs_f64() * 1000.0,
+            );
 
             self.add_frame_timing(elapsed);
 
@@ -608,7 +612,12 @@ impl Player {
 
         self.update_sockets();
         self.update_net_connections();
+        let timer_chrono = Instant::now();
         self.update_timers(dt);
+        crate::avm1::chrono_note(
+            "TOTAL minuteries".to_string(),
+            timer_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
         self.update(|context| {
             StreamManager::tick(context, dt);
         });
