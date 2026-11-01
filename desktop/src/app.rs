@@ -38,6 +38,10 @@ struct MainWindow {
     /// the latest position instead of every move queued while it was busy.
     mouse_move_pending: bool,
 
+    /// Ximera : dernier envoi d'un mouvement de souris au jeu. Une souris gaming envoie
+    /// 1000 positions par seconde, et chacune parcourt tous les elements du jeu.
+    last_mouse_flush: std::time::Instant,
+
     modifiers: Modifiers,
     min_window_size: LogicalSize<u32>,
     max_window_size: PhysicalSize<u32>,
@@ -362,7 +366,12 @@ impl MainWindow {
     fn about_to_wait(&mut self, gilrs: Option<&mut Gilrs>) {
         // When we don't have any more pending events, flush any pending mouse
         // moves, so that they can get coalesced properly.
-        self.flush_mouse_move();
+        // Ximera : au plus une fois par image, comme Flash. Les clics envoient quand meme
+        // la position a jour, par handle_player_event.
+        if self.last_mouse_flush.elapsed() >= std::time::Duration::from_millis(16) {
+            self.last_mouse_flush = std::time::Instant::now();
+            self.flush_mouse_move();
+        }
 
         if let Some(Event { event, .. }) = gilrs.and_then(|gilrs| gilrs.next_event()) {
             match event {
@@ -587,6 +596,7 @@ impl ApplicationHandler<RuffleEvent> for App {
                 occluded: false,
                 mouse_pos: PhysicalPosition::new(0.0, 0.0),
                 mouse_move_pending: false,
+            last_mouse_flush: std::time::Instant::now(),
                 modifiers: Modifiers::default(),
                 time: Instant::now(),
                 next_frame_time: None,
