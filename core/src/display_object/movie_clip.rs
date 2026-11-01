@@ -2355,19 +2355,24 @@ impl<'gc> MovieClip<'gc> {
         } else if self.avm1_parent().is_none() {
             false
         } else if let Some(object) = self.0.object1.get() {
+            // Ximera : sans creer de chaines, et une seule question par prototype et par image.
+            // Meme liste que ClipEvent::BUTTON_EVENT_METHODS.
+            let handlers = [
+                istr!(context, "onDragOver"),
+                istr!(context, "onDragOut"),
+                istr!(context, "onPress"),
+                istr!(context, "onRelease"),
+                istr!(context, "onReleaseOutside"),
+                istr!(context, "onRollOut"),
+                istr!(context, "onRollOver"),
+            ];
             let mut activation = Avm1Activation::from_nothing(
                 context,
                 ActivationIdentifier::root("[Mouse Pick]"),
                 self.avm1_root(),
             );
 
-            ClipEvent::BUTTON_EVENT_METHODS
-                .iter()
-                .copied()
-                .any(|handler| {
-                    let handler = AvmString::new_utf8(activation.gc(), handler);
-                    object.has_property(&mut activation, handler)
-                })
+            object.ximera_has_method(&handlers, 1, &mut activation)
         } else {
             false
         }
@@ -3011,7 +3016,7 @@ impl<'gc> TInteractiveObject<'gc> for MovieClip<'gc> {
                         ActivationIdentifier::root("[Ximera]"),
                         self.into(),
                     );
-                    object.ximera_has_method(name, &mut activation)
+                    object.ximera_has_method(&[name], 0, &mut activation)
                 })
             {
                 context.action_queue.queue_action(
