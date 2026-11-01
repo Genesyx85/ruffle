@@ -714,14 +714,6 @@ impl<'gc> MovieLoader<'gc> {
                     None => return Err(Error::Cancelled),
                 };
 
-                // Ximera : journal des chargements, pour suivre le decor des cartes.
-                tracing::warn!(
-                    "Ximera : chargement {} dans {} retire={}",
-                    request_url,
-                    &*clip.path(),
-                    clip.avm1_removed()
-                );
-
                 if uc.load_manager.load_cancelled_avm1(handle) {
                     tracing::warn!("movie_loader: Target clip was already AVM1 removed");
                     return Err(Error::Cancelled);
