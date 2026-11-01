@@ -829,9 +829,12 @@ fn attach_movie<'gc>(
             sources.iter().find_map(|source| {
                 library
                     .known_movies()
-                    .find(|movie| movie.url().ends_with(source))
-                    .and_then(|movie| library.library_for_movie(movie))
-                    .filter(|l| l.character_by_export_name(&export_name).is_some())
+                    .filter(|movie| movie.url().ends_with(source))
+                    .find_map(|movie| {
+                        library
+                            .library_for_movie(movie)
+                            .filter(|l| l.character_by_export_name(&export_name).is_some())
+                    })
             })
         })
         .or(own_library);
