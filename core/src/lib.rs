@@ -14,6 +14,7 @@ extern crate num_derive;
 
 #[macro_use]
 mod avm1;
+pub use avm1::chrono_note;
 mod avm2;
 mod avm_rng;
 mod binary_data;
