@@ -737,6 +737,36 @@ impl<'gc> Object<'gc> {
         self.get_data(istr!("prototype"), activation)
     }
 
+    /// Ximera : oublie le memo des prototypes, a chaque image.
+    pub fn ximera_clear_memo() {
+        XIMERA_PROTO_MEMO.with(|memo| memo.borrow_mut().clear());
+    }
+
+    /// Ximera : vrai si ce clip a une methode `name`. Les milliers de clips sans
+    /// onEnterFrame partagent quelques prototypes : on ne les interroge qu'une fois par image.
+    pub fn ximera_has_method(
+        self,
+        name: AvmString<'gc>,
+        activation: &mut Activation<'_, 'gc>,
+    ) -> bool {
+        let case_sensitive = activation.is_case_sensitive();
+        if self.0.borrow().properties.get(name, case_sensitive).is_some() {
+            return true;
+        }
+
+        let Value::Object(proto) = self.proto(activation) else {
+            return false;
+        };
+        let key = (gc_arena::Gc::as_ptr(proto.0) as *const () as usize, case_sensitive);
+        if let Some(found) = XIMERA_PROTO_MEMO.with(|memo| memo.borrow().get(&key).copied()) {
+            return found;
+        }
+
+        let found = proto.has_property(activation, name);
+        XIMERA_PROTO_MEMO.with(|memo| memo.borrow_mut().insert(key, found));
+        found
+    }
+
     /// Checks if the object has a given named property.
     pub fn has_property(self, activation: &mut Activation<'_, 'gc>, name: AvmString<'gc>) -> bool {
         let dobj = match self.native_no_super() {
@@ -1062,4 +1092,9 @@ fn parse_array_index(name: AvmString<'_>) -> Option<i32> {
     });
 
     name.parse::<std::num::Wrapping<i32>>().ok().map(|i| i.0)
+}
+
+thread_local! {
+    static XIMERA_PROTO_MEMO: std::cell::RefCell<std::collections::HashMap<(usize, bool), bool>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
 }
