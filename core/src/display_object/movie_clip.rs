@@ -622,6 +622,45 @@ impl<'gc> MovieClip<'gc> {
         is_finished
     }
 
+    /// Ximera : une bibliotheque elle-meme importee reprend ses imports suivants,
+    /// sinon la chaine s'arrete au premier fichier.
+    pub fn resume_imported_preload(self, context: &mut UpdateContext<'gc>) {
+        if self.0.shared.get().importer_movie.is_some() {
+            let mut limit = ExecutionLimit::none();
+            let _ = self.preload(context, &mut limit);
+        }
+    }
+
+    /// Ximera : relie les imports de ce clip a une bibliotheque deja lue.
+    pub fn import_from_loaded_library(
+        self,
+        context: &mut UpdateContext<'gc>,
+        library_movie: SwfMovie<'gc>,
+    ) {
+        let exports: Vec<(AvmString<'gc>, Character<'gc>)> = context
+            .library
+            .library_for_movie(library_movie)
+            .map(|library| {
+                library
+                    .export_characters()
+                    .iter()
+                    .filter_map(|(name, id)| {
+                        library.character_by_id(*id).map(|character| (name, character))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let parent = self.movie();
+        for (name, character) in exports {
+            let parent_library = context.library.library_for_movie_mut(parent);
+            if let Some(id) = parent_library.character_id_by_import_name(&name) {
+                parent_library.register_character(id, character);
+                MovieClipShared::register_export(context, id, name, parent);
+            }
+        }
+    }
+
     pub fn finish_importing(self) {
         self.0
             .shared
