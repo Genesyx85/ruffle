@@ -104,8 +104,8 @@ impl GuiController {
                 color_space: wgpu::SurfaceColorSpace::Auto,
                 width: size.width,
                 height: size.height,
-                present_mode: Default::default(),
-                desired_maximum_frame_latency: 2,
+                present_mode: wgpu::PresentMode::AutoNoVsync, // Ximera : pas d'attente de l'ecran
+                desired_maximum_frame_latency: 1,
                 alpha_mode: Default::default(),
                 view_formats: Default::default(),
             },
@@ -215,8 +215,8 @@ impl GuiController {
                 color_space: wgpu::SurfaceColorSpace::Auto,
                 width: self.size.width,
                 height: self.size.height,
-                present_mode: Default::default(),
-                desired_maximum_frame_latency: 2,
+                present_mode: wgpu::PresentMode::AutoNoVsync, // Ximera : pas d'attente de l'ecran
+                desired_maximum_frame_latency: 1,
                 alpha_mode: Default::default(),
                 view_formats: Default::default(),
             },
