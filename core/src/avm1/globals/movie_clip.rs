@@ -790,11 +790,26 @@ fn attach_movie<'gc>(
         return Ok(Value::Undefined);
     }
 
-    if let Some(new_clip) = activation
-        .context
-        .library
-        .library_for_movie(movie_clip.movie())
-        .and_then(|l| l.instantiate_by_export_name(&export_name, activation.gc()))
+    // Ximera : Flash trouve aussi les symboles des bibliotheques importees (decor des cartes).
+    let gc = activation.gc();
+    let library = &activation.context.library;
+    let own_library = library.library_for_movie(movie_clip.movie());
+    let source_library = own_library
+        .filter(|l| l.character_by_export_name(&export_name).is_some())
+        .or_else(|| {
+            library
+                .known_movies()
+                .filter(|movie| movie.url().contains("/clips/gfx/"))
+                .find_map(|movie| {
+                    library
+                        .library_for_movie(movie)
+                        .filter(|l| l.character_by_export_name(&export_name).is_some())
+                })
+        })
+        .or(own_library);
+
+    if let Some(new_clip) =
+        source_library.and_then(|l| l.instantiate_by_export_name(&export_name, gc))
     {
         new_clip.set_placed_by_avm1_script(true);
         // Set name and attach to parent.
