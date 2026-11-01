@@ -1,0 +1,49 @@
+# Ximera : fabrique Ruffle corrigé sur les machines de GitHub (ticket #149)
+name: Ximera
+
+on:
+  push:
+    branches: [ximera]
+
+jobs:
+  windows:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-pc-windows-msvc
+      - name: Fabrication
+        run: cargo build --locked --package ruffle_desktop --profile dist --features jpegxr --target x86_64-pc-windows-msvc
+        env:
+          RUSTFLAGS: -Ctarget-feature=+crt-static
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruffle-ximera-windows
+          path: target/x86_64-pc-windows-msvc/dist/ruffle_desktop.exe
+          retention-days: 30
+
+  macos:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+      - name: Fabrication Intel
+        run: cargo build --locked --package ruffle_desktop --profile dist --features sandbox,jpegxr,fontconfig-dlopen --target x86_64-apple-darwin
+        env:
+          MACOSX_DEPLOYMENT_TARGET: 10.7
+      - name: Fabrication Apple Silicon
+        run: cargo build --locked --package ruffle_desktop --profile dist --features sandbox,jpegxr,fontconfig-dlopen --target aarch64-apple-darwin
+        env:
+          MACOSX_DEPLOYMENT_TARGET: 11.0
+      - name: Assemblage
+        run: lipo -create -output ruffle target/x86_64-apple-darwin/dist/ruffle_desktop target/aarch64-apple-darwin/dist/ruffle_desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ruffle-ximera-macos
+          path: ruffle
+          retention-days: 30
