@@ -703,6 +703,9 @@ impl<'gc> DisplayObjectBase<'gc> {
     }
 
     fn set_avm1_pending_removal(&self, value: bool) {
+        if value {
+            AVM1_PENDING_SEEN.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         self.set_flag(DisplayObjectFlags::AVM1_PENDING_REMOVAL, value);
     }
 
@@ -3334,3 +3337,7 @@ impl<'gc> DisplayObjectWeak<'gc> {
         }
     }
 }
+
+/// Ximera : vrai si un element attend d'etre retire, pour ne pas fouiller tout l'arbre a chaque image.
+pub static AVM1_PENDING_SEEN: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
