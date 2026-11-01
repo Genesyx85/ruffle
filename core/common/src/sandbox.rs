@@ -40,15 +40,12 @@ impl SandboxType {
     /// When the URL is local, [`SandboxType::LocalWithFile`] or
     /// [`SandboxType::LocalWithNetwork`] is used depending on
     /// the preference from the header.
-    pub fn infer(url: &str, header: &HeaderExt) -> Self {
+    pub fn infer(url: &str, _header: &HeaderExt) -> Self {
         match Url::parse(url) {
             Ok(url) => {
                 if url.scheme() == "file" {
-                    if header.use_network_sandbox() {
-                        Self::LocalWithNetwork
-                    } else {
-                        Self::LocalWithFile
-                    }
+                    // Ximera : comme le lecteur Flash autonome, un fichier local est de confiance.
+                    Self::LocalTrusted
                 } else {
                     Self::Remote
                 }
