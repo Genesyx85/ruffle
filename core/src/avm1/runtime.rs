@@ -506,6 +506,13 @@ impl<'gc> Avm1<'gc> {
     /// Remove all display objects pending removal
     /// See [`find_display_objects_pending_removal`] for details
     fn remove_pending(context: &mut UpdateContext<'gc>) {
+        // Ximera : rien a retirer, on evite de parcourir tous les elements.
+        if !crate::display_object::AVM1_PENDING_SEEN
+            .swap(false, std::sync::atomic::Ordering::Relaxed)
+        {
+            return;
+        }
+
         // Storage for objects to remove
         // Have to do this in two passes to avoid borrow-mut while already borrowed
         let mut out = Vec::new();
@@ -541,6 +548,7 @@ impl<'gc> Avm1<'gc> {
     pub fn run_frame(context: &mut UpdateContext<'gc>) {
         // Remove pending objects
         Self::remove_pending(context);
+        Object::ximera_clear_memo();
 
         // In AVM1, we only ever execute the idle phase, and all the work that
         // would ordinarily be phased is instead run all at once in whatever order
