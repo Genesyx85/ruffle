@@ -73,6 +73,14 @@ impl<'gc> MovieClipReference<'gc> {
     ) -> Option<Self> {
         // We can't use as_display_object here as we explicitly don't want to convert `SuperObjects`
         let display_object = object.as_display_object_no_super()?;
+
+        // Ximera : le chemin d'un clip est calcule une fois, pas a chaque usage.
+        if let DisplayObject::MovieClip(mc) = display_object
+            && let Some(reference) = mc.avm1_reference()
+        {
+            return Some(reference);
+        }
+
         let (path, cached) = if let DisplayObject::MovieClip(mc) = display_object {
             (mc.path(), display_object.object1()?)
         } else if activation.swf_version() <= 5 {
@@ -87,7 +95,11 @@ impl<'gc> MovieClipReference<'gc> {
             path: MovieClipPath::new_from_path(activation.gc(), path),
             cached_object: Some(cached.as_weak()).into(),
         };
-        Some(Self(Gc::new(activation.gc(), mc_ref)))
+        let reference = Self(Gc::new(activation.gc(), mc_ref));
+        if let DisplayObject::MovieClip(mc) = display_object {
+            mc.set_avm1_reference(activation.gc(), reference);
+        }
+        Some(reference)
     }
 
     pub fn from_path(gc: &'gc Mutation<'gc>, path: &WStr) -> Self {
