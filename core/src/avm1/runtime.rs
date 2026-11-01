@@ -18,6 +18,42 @@ use std::borrow::Cow;
 use swf::avm1::read::Reader;
 use tracing::instrument;
 
+// Ximera : chronometre provisoire, ecrit dans le journal toutes les 5 secondes.
+type ChronoLignes = std::collections::HashMap<String, (f64, u64)>;
+
+thread_local! {
+    static CHRONO: std::cell::RefCell<(Option<web_time::Instant>, ChronoLignes)> =
+        std::cell::RefCell::new((None, ChronoLignes::new()));
+}
+
+pub fn chrono_note(cle: String, ms: f64) {
+    let cle: String = cle
+        .chars()
+        .rev()
+        .take(90)
+        .collect::<Vec<char>>()
+        .into_iter()
+        .rev()
+        .map(|c| if c.is_ascii_digit() { 'N' } else if c.is_control() { '~' } else { c })
+        .collect();
+    CHRONO.with(|chrono| {
+        let chrono = &mut *chrono.borrow_mut();
+        let ligne = chrono.1.entry(cle).or_insert((0.0, 0));
+        ligne.0 += ms;
+        ligne.1 += 1;
+        let maintenant = web_time::Instant::now();
+        let debut = *chrono.0.get_or_insert(maintenant);
+        if maintenant.duration_since(debut).as_secs() >= 5 {
+            let mut lignes: Vec<_> = chrono.1.drain().collect();
+            lignes.sort_by(|a, b| b.1.0.total_cmp(&a.1.0));
+            for (cle, (ms, nombre)) in lignes.iter().take(30) {
+                tracing::error!("CHRONO {ms:.0} ms {nombre} fois {cle}");
+            }
+            chrono.0 = None;
+        }
+    });
+}
+
 /// The global environment.
 ///
 /// Because SWFs v6 and v7+ use different case-sensitivity rules, Flash
@@ -159,6 +195,7 @@ impl<'gc> Avm1<'gc> {
             ),
         );
         let constant_pool = context.avm1.constant_pool;
+        let debut_chrono = web_time::Instant::now();
         let mut child_activation = Activation::from_action(
             context,
             ActivationIdentifier::root(name),
@@ -173,6 +210,10 @@ impl<'gc> Avm1<'gc> {
         if let Err(e) = child_activation.run_actions(code) {
             Self::handle_error(&mut child_activation, e);
         }
+        chrono_note(
+            format!("image {} {}", name, &*active_clip.path()),
+            debut_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
     }
 
     /// Add a stack frame that executes code in globals scope
@@ -297,11 +338,16 @@ impl<'gc> Avm1<'gc> {
             return;
         }
 
+        let debut_chrono = web_time::Instant::now();
         let name_utf8 = &name.to_utf8_lossy();
         let mut activation =
             Activation::from_nothing(context, ActivationIdentifier::root(name_utf8), active_clip);
 
         let _ = obj.call_method(name, args, &mut activation, ExecutionReason::Special);
+        chrono_note(
+            format!("methode {} {}", name, &*active_clip.path()),
+            debut_chrono.elapsed().as_secs_f64() * 1000.0,
+        );
     }
 
     pub fn notify_system_listeners(
