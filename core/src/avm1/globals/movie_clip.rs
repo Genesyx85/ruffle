@@ -71,6 +71,8 @@ const PROTO_DECLS: StaticDeclarations = declare_static_properties! {
     "tabIndex" => property(mc_getter!(tab_index), mc_setter!(set_tab_index); DONT_ENUM | VERSION_6);
     "_lockroot" => property(mc_getter!(lock_root), mc_setter!(set_lock_root); DONT_DELETE | DONT_ENUM);
     "cacheAsBitmap" => property(mc_getter!(cache_as_bitmap), mc_setter!(set_cache_as_bitmap); DONT_DELETE | DONT_ENUM | VERSION_8);
+    // Ximera : nom brouille de cacheAsBitmap dans le jeu : Flash l'ignore, ici il allege le dessin.
+    "" => property(mc_getter!(cache_as_bitmap), mc_setter!(set_cache_as_bitmap); DONT_DELETE | DONT_ENUM | VERSION_8);
     "opaqueBackground" => property(mc_getter!(opaque_background), mc_setter!(set_opaque_background); DONT_DELETE | DONT_ENUM | VERSION_8);
     "scrollRect" => property(mc_getter!(scroll_rect), mc_setter!(set_scroll_rect); DONT_DELETE | DONT_ENUM | VERSION_8);
     "filters" => property(mc_getter!(filters), mc_setter!(set_filters); DONT_DELETE | DONT_ENUM | VERSION_8);
