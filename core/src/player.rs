@@ -2483,7 +2483,17 @@ impl Player {
         self.mutate_with_update_context(|context| {
             Self::update_drag(context);
         });
-        self.update_mouse_state(EnumSet::empty(), false, &mut false);
+        // Ximera : au plus une fois par image, chaque calcul parcourt tous les elements.
+        let pick_due = XIMERA_LAST_PICK.with(|last| {
+            let due = last.get().is_none_or(|time| time.elapsed().as_millis() >= 16);
+            if due {
+                last.set(Some(Instant::now()));
+            }
+            due
+        });
+        if pick_due {
+            self.update_mouse_state(EnumSet::empty(), false, &mut false);
+        }
 
         // GC
         let timer_chrono = Instant::now();
@@ -3369,4 +3379,8 @@ pub enum PlayerMode {
 
     /// Represents the debug version of Flash Player, i.e. flashplayerdebugger.
     Debug,
+}
+
+thread_local! {
+    static XIMERA_LAST_PICK: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
 }
