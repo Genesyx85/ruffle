@@ -351,7 +351,14 @@ impl<'gc> LoadManager<'gc> {
                     player.lock().unwrap().mutate_with_update_context(|uc| {
                         let importer_movie = importer_movie.fetch(uc);
 
-                        if matches!(content_type, ContentType::Swf) {
+                        // Ximera : une bibliotheque importee n'est lue qu'une fois, meme si
+                        // chaque personnage de la carte la demande (sinon lag et memoire).
+                        let already_loaded =
+                            uc.library.known_movies().find(|movie| movie.url() == url);
+
+                        if let Some(movie) = already_loaded {
+                            importer_movie.import_from_loaded_library(uc, movie);
+                        } else if matches!(content_type, ContentType::Swf) {
                             let movie = SwfMovieData::from_data(
                                 &body,
                                 url.clone(),
@@ -385,6 +392,7 @@ impl<'gc> LoadManager<'gc> {
                         }
 
                         importer_movie.finish_importing();
+                        importer_movie.resume_imported_preload(uc);
                     });
                     Ok(())
                 }
