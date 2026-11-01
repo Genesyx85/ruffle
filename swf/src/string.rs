@@ -214,6 +214,19 @@ impl SwfStr {
     /// ```
     #[inline]
     pub fn to_str_lossy(&self, encoding: &'static Encoding) -> Cow<'_, str> {
+        // Ximera : Flash garde les octets invalides des noms obscurcis. Chaque
+        // octet invalide devient un caractere prive distinct, pour que deux
+        // noms differents ne soient jamais confondus.
+        if encoding == encoding_rs::UTF_8 && std::str::from_utf8(&self.string).is_err() {
+            let mut sortie = String::with_capacity(self.string.len());
+            for morceau in self.string.utf8_chunks() {
+                sortie.push_str(morceau.valid());
+                for &octet in morceau.invalid() {
+                    sortie.extend(char::from_u32(0xF700 + u32::from(octet)));
+                }
+            }
+            return Cow::Owned(sortie);
+        }
         encoding.decode_without_bom_handling(&self.string).0
     }
 
