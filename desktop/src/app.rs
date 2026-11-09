@@ -167,6 +167,19 @@ impl MainWindow {
                     ElementState::Released => PlayerEvent::MouseUp { x, y, button },
                 };
                 let handled = self.handle_player_event(event);
+
+                // Ximera : comme le programme Windows de Dofus, le clic droit est signale au jeu
+                // (sort sur soi, lancer un combat...), sans afficher le menu de Ruffle.
+                if state == ElementState::Pressed && button == RuffleMouseButton::Right {
+                    if let Some(mut player) = self.player.get() {
+                        player.call_internal_interface(
+                            "onRightClick",
+                            std::iter::empty::<ruffle_core::external::Value>(),
+                        );
+                    }
+                    return;
+                }
+
                 if !handled && state == ElementState::Pressed && button == RuffleMouseButton::Right
                 {
                     // Show context menu.
