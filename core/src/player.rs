@@ -688,7 +688,11 @@ impl Player {
                     if let Ok(Value::Object(on_select)) =
                         menu.get(istr!("onSelect"), &mut activation)
                     {
-                        Self::run_context_menu_custom_callback(menu, on_select, activation.context);
+                        // Ximera : avant, ce rappel exigeait un menu deja affiche auparavant ;
+                        // Dofus n'en affiche jamais, il n'etait donc jamais prevenu du clic droit.
+                        if let Some(display_object) = display_obj {
+                            Self::run_context_menu_select(menu, on_select, display_object, activation.context);
+                        }
                     }
                     Some(menu)
                 } else {
@@ -809,6 +813,27 @@ impl Player {
                 Self::run_actions(context);
             }
         });
+    }
+
+    /// Ximera : previent le menu du jeu (onSelect) avec l'element sous le curseur.
+    fn run_context_menu_select<'gc>(
+        item: Object<'gc>,
+        callback: Object<'gc>,
+        display_object: DisplayObject<'gc>,
+        context: &mut UpdateContext<'gc>,
+    ) {
+        let mut activation = Activation::from_nothing(
+            context,
+            ActivationIdentifier::root("[Context Menu Callback]"),
+            display_object,
+        );
+        let params = [display_object.object1_or_undef(), Value::Object(item)];
+        let _ = callback.call(
+            "[Context Menu Callback]",
+            &mut activation,
+            Value::Undefined,
+            &params,
+        );
     }
 
     fn run_context_menu_custom_callback<'gc>(
