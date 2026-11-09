@@ -673,17 +673,11 @@ impl Player {
 
     pub fn prepare_context_menu(&mut self) -> Vec<ContextMenuItem> {
         self.mutate_with_update_context(|context| {
-            // Ximera : journal provisoire du clic droit.
-            tracing::error!("Ximera clic droit : menu autorise = {}", context.stage.show_menu());
-            if !context.stage.show_menu() {
-                return vec![];
-            }
+            // Ximera : comme Flash, le menu du jeu est prevenu (onSelect) meme quand le menu
+            // est interdit (Stage.showMenu = false). Dofus repere ainsi le clic droit.
+            let show_menu = context.stage.show_menu();
 
             let display_obj = Player::get_context_menu_display_object(context);
-            tracing::error!(
-                "Ximera clic droit : objet = {:?}",
-                display_obj.map(|o| o.path().to_string())
-            );
 
             let menu = if let Some(obj) = display_obj.and_then(|obj| obj.object1()) {
                 let mut activation =
@@ -694,14 +688,10 @@ impl Player {
                     if let Ok(Value::Object(on_select)) =
                         menu.get(istr!("onSelect"), &mut activation)
                     {
-                        tracing::error!("Ximera clic droit : menu et onSelect trouves");
                         Self::run_context_menu_custom_callback(menu, on_select, activation.context);
-                    } else {
-                        tracing::error!("Ximera clic droit : menu sans onSelect");
                     }
                     Some(menu)
                 } else {
-                    tracing::error!("Ximera clic droit : pas de menu sur l'objet");
                     None
                 };
 
@@ -742,6 +732,10 @@ impl Player {
                 menu.build_builtin_items(builtin_items, context);
                 menu
             };
+
+            if !show_menu {
+                return vec![];
+            }
 
             let ret = menu.info().clone();
             *context.current_context_menu = Some(menu);
