@@ -168,14 +168,12 @@ impl MainWindow {
                 };
                 let handled = self.handle_player_event(event);
 
-                // Ximera : comme le programme Windows de Dofus, le clic droit est signale au jeu
-                // (sort sur soi, lancer un combat...), sans afficher le menu de Ruffle.
+                // Ximera : le jeu repere le clic droit grace au menu Flash qu'il installe (son onSelect,
+                // appele juste avant l'affichage). On le declenche comme Flash, sans afficher de menu :
+                // sort sur soi, lancer un combat...
                 if state == ElementState::Pressed && button == RuffleMouseButton::Right {
                     if let Some(mut player) = self.player.get() {
-                        player.call_internal_interface(
-                            "onRightClick",
-                            std::iter::empty::<ruffle_core::external::Value>(),
-                        );
+                        let _ = player.prepare_context_menu();
                     }
                     return;
                 }
