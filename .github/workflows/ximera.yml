@@ -4,6 +4,7 @@ name: Ximera
 on:
   push:
     branches: [ximera]
+  workflow_dispatch:
 
 jobs:
   windows:
