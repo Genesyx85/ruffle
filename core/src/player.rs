@@ -673,11 +673,17 @@ impl Player {
 
     pub fn prepare_context_menu(&mut self) -> Vec<ContextMenuItem> {
         self.mutate_with_update_context(|context| {
+            // Ximera : journal provisoire du clic droit.
+            tracing::error!("Ximera clic droit : menu autorise = {}", context.stage.show_menu());
             if !context.stage.show_menu() {
                 return vec![];
             }
 
             let display_obj = Player::get_context_menu_display_object(context);
+            tracing::error!(
+                "Ximera clic droit : objet = {:?}",
+                display_obj.map(|o| o.path().to_string())
+            );
 
             let menu = if let Some(obj) = display_obj.and_then(|obj| obj.object1()) {
                 let mut activation =
@@ -685,13 +691,14 @@ impl Player {
                 let menu_object = if let Ok(Value::Object(menu)) =
                     obj.get(istr!("menu"), &mut activation)
                 {
-                    if let Ok(Value::Object(on_select)) =
-                        menu.get(istr!("onSelect"), &mut activation)
-                    {
+                    let on_select_value = menu.get(istr!("onSelect"), &mut activation);
+                    tracing::error!("Ximera clic droit : menu trouve, onSelect = {:?}", on_select_value.is_ok_and(|v| matches!(v, Value::Object(_))));
+                    if let Ok(Value::Object(on_select)) = on_select_value {
                         Self::run_context_menu_custom_callback(menu, on_select, activation.context);
                     }
                     Some(menu)
                 } else {
+                    tracing::error!("Ximera clic droit : pas de menu sur l'objet");
                     None
                 };
 
