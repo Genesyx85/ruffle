@@ -691,10 +691,13 @@ impl Player {
                 let menu_object = if let Ok(Value::Object(menu)) =
                     obj.get(istr!("menu"), &mut activation)
                 {
-                    let on_select_value = menu.get(istr!("onSelect"), &mut activation);
-                    tracing::error!("Ximera clic droit : menu trouve, onSelect = {:?}", on_select_value.is_ok_and(|v| matches!(v, Value::Object(_))));
-                    if let Ok(Value::Object(on_select)) = on_select_value {
+                    if let Ok(Value::Object(on_select)) =
+                        menu.get(istr!("onSelect"), &mut activation)
+                    {
+                        tracing::error!("Ximera clic droit : menu et onSelect trouves");
                         Self::run_context_menu_custom_callback(menu, on_select, activation.context);
+                    } else {
+                        tracing::error!("Ximera clic droit : menu sans onSelect");
                     }
                     Some(menu)
                 } else {
