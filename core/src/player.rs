@@ -1315,12 +1315,18 @@ impl Player {
                 ),
                 InputEvent::MouseWheel { delta } => {
                     let delta = Value::from(delta.lines());
+                    // Ximera : comme Flash, le second argument est l'objet sous la souris
+                    // (scrollTarget). Les zones de texte du jeu ne defilent que si elles le
+                    // contiennent ; sans lui, la molette ne faisait rien.
+                    let scroll_target = run_mouse_pick(context, false)
+                        .map(|o| o.as_displayobject().object1_or_undef())
+                        .unwrap_or(Value::Undefined);
                     (
                         None,
                         Some((
                             istr!(context, "Mouse"),
                             istr!(context, "onMouseWheel"),
-                            vec![delta],
+                            vec![delta, scroll_target],
                         )),
                     )
                 }
