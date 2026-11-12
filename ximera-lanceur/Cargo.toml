@@ -1,0 +1,26 @@
+# Lanceur Ximera pour Mac (ticket #149) : même rôle que Ximera.exe sous Windows
+# (tools/client-joueurs/Lanceur.cs dans le dépôt du serveur), mais il lance le jeu avec ce Ruffle corrigé.
+# Projet à part, hors de l'espace de travail de Ruffle (section [workspace] vide ci-dessous).
+[package]
+name = "ximera-lanceur"
+version = "1.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "Ximera"
+path = "src/main.rs"
+
+[dependencies]
+eframe = { version = "0.31", default-features = false, features = ["glow", "default_fonts"] }
+ureq = { version = "2", default-features = false }
+sha2 = "0.10"
+flate2 = "1"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true

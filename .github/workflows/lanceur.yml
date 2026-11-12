@@ -1,0 +1,85 @@
+# Ximera : fabrique le lanceur Mac (ximera-lanceur) sur les machines de GitHub (ticket #149)
+# Mac universel (Intel + Apple Silicon) et copie d'essai Windows, mis dans la publication « ximera-mac »
+# d'où publier.ps1 (dépôt du serveur) les récupère.
+name: Lanceur Ximera
+
+on:
+  push:
+    branches: [ximera]
+    paths: ['ximera-lanceur/**', '.github/workflows/lanceur.yml']
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: ximera-lanceur
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          targets: x86_64-apple-darwin,aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ximera-lanceur
+      - name: Fabrication Intel
+        run: cargo build --release --target x86_64-apple-darwin
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '10.13'
+      - name: Fabrication Apple Silicon
+        run: cargo build --release --target aarch64-apple-darwin
+        env:
+          MACOSX_DEPLOYMENT_TARGET: '11.0'
+      - name: Assemblage
+        run: |
+          lipo -create -output Ximera-macos target/x86_64-apple-darwin/release/Ximera target/aarch64-apple-darwin/release/Ximera
+          codesign --force -s - Ximera-macos
+          lipo -info Ximera-macos
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lanceur-macos
+          path: ximera-lanceur/Ximera-macos
+          retention-days: 30
+
+  windows:
+    runs-on: windows-2025
+    defaults:
+      run:
+        working-directory: ximera-lanceur
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ximera-lanceur
+      - name: Fabrication
+        run: cargo build --release
+      - name: Copie
+        run: copy target\release\Ximera.exe Ximera-essai-windows.exe
+        shell: cmd
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lanceur-windows
+          path: ximera-lanceur/Ximera-essai-windows.exe
+          retention-days: 30
+
+  publier:
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publication ximera-mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view ximera-mac >/dev/null 2>&1 || gh release create ximera-mac --target ximera --title "Ximera : jeu pour Mac" --notes "Lanceur Mac et Ruffle corrigé pour Ximera, récupérés par publier.ps1."
+          gh release upload ximera-mac Ximera-macos Ximera-essai-windows.exe --clobber

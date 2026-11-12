@@ -4,6 +4,7 @@ name: Ximera
 on:
   push:
     branches: [ximera]
+    paths-ignore: ['ximera-lanceur/**', '.github/workflows/lanceur.yml']
   workflow_dispatch:
 
 jobs:
@@ -46,9 +47,29 @@ jobs:
         env:
           MACOSX_DEPLOYMENT_TARGET: 11.0
       - name: Assemblage
-        run: lipo -create -output ruffle target/x86_64-apple-darwin/dist/ruffle_desktop target/aarch64-apple-darwin/dist/ruffle_desktop
+        run: |
+          lipo -create -output ruffle target/x86_64-apple-darwin/dist/ruffle_desktop target/aarch64-apple-darwin/dist/ruffle_desktop
+          codesign --force -s - ruffle
       - uses: actions/upload-artifact@v4
         with:
           name: ruffle-ximera-macos
           path: ruffle
           retention-days: 30
+
+  # Ruffle corrigé mis dans la publication « ximera-mac » : publier.ps1 (dépôt du serveur) l'envoie aux joueurs Mac
+  publier:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+      - name: Publication ximera-mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cp ruffle-ximera-macos/ruffle ruffle-macos
+          cp ruffle-ximera-windows/ruffle_desktop.exe ruffle-windows.exe
+          gh release view ximera-mac >/dev/null 2>&1 || gh release create ximera-mac --target ximera --title "Ximera : jeu pour Mac" --notes "Lanceur Mac et Ruffle corrigé pour Ximera, récupérés par publier.ps1."
+          gh release upload ximera-mac ruffle-macos ruffle-windows.exe --clobber
