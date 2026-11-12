@@ -1318,8 +1318,8 @@ impl Player {
                     // Ximera : comme Flash, le second argument est l'objet sous la souris
                     // (scrollTarget). Les zones de texte du jeu ne defilent que si elles le
                     // contiennent ; sans lui, la molette ne faisait rien.
-                    let scroll_target = run_mouse_pick(context, false)
-                        .map(|o| o.as_displayobject().object1_or_undef())
+                    let scroll_target = ximera_scroll_target(context)
+                        .map(|o| o.object1_or_undef())
                         .unwrap_or(Value::Undefined);
                     (
                         None,
@@ -3300,6 +3300,47 @@ pub struct DragObject<'gc> {
     /// The bounding rectangle where the clip will be maintained.
     #[collect(require_static)]
     pub constraint: Rectangle<Twips>,
+}
+
+/// Ximera : scrollTarget de Mouse.onMouseWheel, comme Flash : le clip (MovieClip) le plus
+/// profond sous la souris, qu'il reagisse a la souris ou non. Un texte ou un dessin touche
+/// arrete la descente sur le clip qui le contient.
+fn ximera_scroll_target<'gc>(context: &mut UpdateContext<'gc>) -> Option<DisplayObject<'gc>> {
+    let point = *context.mouse_position;
+    let levels: Vec<DisplayObject<'gc>> = context.stage.iter_render_list().rev().collect();
+    let mut current: Option<DisplayObject<'gc>> = None;
+    for level in levels {
+        if !level.movie().is_action_script_3()
+            && level.hit_test_shape(context, point, HitTestOptions::MOUSE_PICK)
+        {
+            current = Some(level);
+            break;
+        }
+    }
+    let mut current = current?;
+    loop {
+        let Some(container) = current.as_container() else {
+            break;
+        };
+        let children: Vec<DisplayObject<'gc>> = container.iter_render_list().rev().collect();
+        let mut next = None;
+        for child in children {
+            if child.clip_depth() > 0 {
+                continue;
+            }
+            if child.hit_test_shape(context, point, HitTestOptions::MOUSE_PICK) {
+                if child.as_movie_clip().is_some() {
+                    next = Some(child);
+                }
+                break;
+            }
+        }
+        match next {
+            Some(child) => current = child,
+            None => break,
+        }
+    }
+    Some(current)
 }
 
 fn run_mouse_pick<'gc>(
