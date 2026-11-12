@@ -304,7 +304,12 @@ impl eframe::App for Fenetre {
         self.charger_banniere(ctx);
 
         egui::CentralPanel::default().frame(egui::Frame::default().fill(FOND)).show(ctx, |ui| {
-            self.dessiner(ctx, ui.painter(), &p);
+            if self.test_etape == 3 {
+                // --capture-journal : le journal est dessiné dans la fenêtre principale, mise à sa taille
+                self.peindre_journal(ctx, ui.painter(), &p.nouveautes, 0, None);
+            } else {
+                self.dessiner(ctx, ui.painter(), &p);
+            }
         });
         if !self.l.mode_test {
             self.interagir(ctx, &p);
@@ -565,8 +570,6 @@ impl Fenetre {
             b = b.with_position(pos);
         }
         let mut fermer = false;
-        let capture = if self.test_etape == 3 { self.capture_journal.clone() } else { None };
-        let mut capture_faite = false;
         ctx.show_viewport_immediate(egui::ViewportId::from_hash_of("journal"), b, |ctx, _| {
             ctx.request_repaint_after(Duration::from_millis(100));
             let (fermeture, gauche, droite, clic, molette) = ctx.input(|i| {
@@ -609,68 +612,68 @@ impl Fenetre {
             self.journal_decalage = (self.journal_decalage - molette).clamp(0.0, max);
 
             egui::CentralPanel::default().frame(egui::Frame::default().fill(FOND)).show(ctx, |ui| {
-                let pt = ui.painter();
-                let m = &liste[index];
-                let date = if m.date.is_empty() { "Mise à jour".to_string() } else { format!("Mise à jour du {}", m.date) };
-                ecrire(pt, &date, normal(12.7), GRIS, 22.0, 14.0);
-                ecrire(pt, &couper(ctx, &m.titre, &gras(18.7), w - 44.0), gras(18.7), OR, 20.0, 34.0);
-
-                // Détail : une puce par ligne, coupé en plusieurs lignes si besoin
-                encadre(pt, zone_detail);
-                let clip = pt.with_clip_rect(zone_detail.shrink(1.0));
-                let f = normal(13.3);
-                let mut y = zone_detail.top() + 12.0 - self.journal_decalage;
-                let debut = y;
-                if m.details.is_empty() {
-                    ecrire(&clip, "Pas de détail pour cette mise à jour.", f.clone(), GRIS, zone_detail.left() + 16.0, y);
-                }
-                for d in &m.details {
-                    let largeur_texte = zone_detail.width() - 52.0;
-                    let g = ctx.fonts(|fo| fo.layout(d.clone(), f.clone(), TEXTE, largeur_texte));
-                    let hauteur = g.size().y;
-                    ecrire(&clip, "•", f.clone(), OR, zone_detail.left() + 14.0, y - 2.0);
-                    clip.galley(pos2(zone_detail.left() + 32.0, y), g, TEXTE);
-                    y += hauteur + 7.0;
-                }
-                self.journal_hauteur = y - debut;
-                // Détail plus long que l'encadré : flèches qui invitent à faire tourner la molette
-                if self.journal_decalage > 0.0 {
-                    ecrire(pt, "▲", normal(12.0), GRIS, zone_detail.right() - 22.0, zone_detail.top() + 2.0);
-                }
-                if self.journal_hauteur - self.journal_decalage > zone_detail.height() - 12.0 {
-                    ecrire(pt, "▼", normal(12.0), GRIS, zone_detail.right() - 22.0, zone_detail.bottom() - 22.0);
-                }
-
-                // Navigation
-                let fb = gras(13.3);
-                let a = ecrire(pt, "← Plus ancienne", fb.clone(), if ancienne { OR } else { ETEINT }, zone_ancienne.left(), zone_ancienne.top());
-                if sur(zone_ancienne) && ancienne {
-                    souligner(pt, a, OR);
-                }
-                let texte_recente = "Plus récente →";
-                let lr = largeur(ctx, texte_recente, &fb);
-                let b = ecrire(pt, texte_recente, fb, if recente { OR } else { ETEINT }, zone_recente.right() - lr, zone_recente.top());
-                if sur(zone_recente) && recente {
-                    souligner(pt, b, OR);
-                }
-                let c = format!("{} sur {}", liste.len() - index, liste.len());
-                let lc = largeur(ctx, &c, &normal(12.0));
-                ecrire(pt, &c, normal(12.0), GRIS, (w - lc) / 2.0, zone_ancienne.top() + 2.0);
+                self.peindre_journal(ctx, ui.painter(), liste, index, souris);
             });
-
-            if let Some(chemin) = &capture {
-                if let Some(img) = capture_recue(ctx) {
-                    enregistrer(&img, chemin);
-                    capture_faite = true;
-                } else {
-                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
-                }
-            }
         });
         self.journal = if fermer { None } else { Some(index) };
-        if capture_faite {
-            self.test_etape = 4;
+    }
+
+    // Contenu du journal (fenêtre du journal, ou fenêtre principale pour --capture-journal)
+    fn peindre_journal(&mut self, ctx: &egui::Context, pt: &Painter, liste: &[MiseAJour], index: usize, souris: Option<Pos2>) {
+        let ecran = ctx.screen_rect();
+        let (w, h) = (ecran.width(), ecran.height());
+        let zone_ancienne = r(20.0, h - 36.0, 150.0, 22.0);
+        let zone_recente = r(w - 170.0, h - 36.0, 150.0, 22.0);
+        let zone_detail = r(20.0, 78.0, w - 40.0, h - 128.0);
+        let sur = |z: Rect| souris.map(|s| z.contains(s)).unwrap_or(false);
+        let ancienne = index + 1 < liste.len();
+        let recente = index > 0;
+        let m = &liste[index];
+        let date = if m.date.is_empty() { "Mise à jour".to_string() } else { format!("Mise à jour du {}", m.date) };
+        ecrire(pt, &date, normal(12.7), GRIS, 22.0, 14.0);
+        ecrire(pt, &couper(ctx, &m.titre, &gras(18.7), w - 44.0), gras(18.7), OR, 20.0, 34.0);
+
+        // Détail : une puce par ligne, coupé en plusieurs lignes si besoin
+        encadre(pt, zone_detail);
+        let clip = pt.with_clip_rect(zone_detail.shrink(1.0));
+        let f = normal(13.3);
+        let mut y = zone_detail.top() + 12.0 - self.journal_decalage;
+        let debut = y;
+        if m.details.is_empty() {
+            ecrire(&clip, "Pas de détail pour cette mise à jour.", f.clone(), GRIS, zone_detail.left() + 16.0, y);
         }
+        for d in &m.details {
+            let largeur_texte = zone_detail.width() - 52.0;
+            let g = ctx.fonts(|fo| fo.layout(d.clone(), f.clone(), TEXTE, largeur_texte));
+            let hauteur = g.size().y;
+            ecrire(&clip, "•", f.clone(), OR, zone_detail.left() + 14.0, y - 2.0);
+            clip.galley(pos2(zone_detail.left() + 32.0, y), g, TEXTE);
+            y += hauteur + 7.0;
+        }
+        self.journal_hauteur = y - debut;
+        // Détail plus long que l'encadré : flèches qui invitent à faire tourner la molette
+        if self.journal_decalage > 0.0 {
+            ecrire(pt, "▲", normal(12.0), GRIS, zone_detail.right() - 22.0, zone_detail.top() + 2.0);
+        }
+        if self.journal_hauteur - self.journal_decalage > zone_detail.height() - 12.0 {
+            ecrire(pt, "▼", normal(12.0), GRIS, zone_detail.right() - 22.0, zone_detail.bottom() - 22.0);
+        }
+
+        // Navigation
+        let fb = gras(13.3);
+        let a = ecrire(pt, "← Plus ancienne", fb.clone(), if ancienne { OR } else { ETEINT }, zone_ancienne.left(), zone_ancienne.top());
+        if sur(zone_ancienne) && ancienne {
+            souligner(pt, a, OR);
+        }
+        let texte_recente = "Plus récente →";
+        let lr = largeur(ctx, texte_recente, &fb);
+        let b = ecrire(pt, texte_recente, fb, if recente { OR } else { ETEINT }, zone_recente.right() - lr, zone_recente.top());
+        if sur(zone_recente) && recente {
+            souligner(pt, b, OR);
+        }
+        let c = format!("{} sur {}", liste.len() - index, liste.len());
+        let lc = largeur(ctx, &c, &normal(12.0));
+        ecrire(pt, &c, normal(12.0), GRIS, (w - lc) / 2.0, zone_ancienne.top() + 2.0);
     }
 
     // --test, --capture, --capture-journal : attend la fin de la mise à jour, enregistre les images puis se ferme
@@ -694,13 +697,24 @@ impl Fenetre {
             }
             2 => {
                 if self.capture_journal.is_some() && !p.nouveautes.is_empty() {
-                    self.ouvrir_journal(ctx, 0);
+                    ctx.send_viewport_cmd(egui::ViewportCommand::InnerSize(vec2(540.0, 424.0)));
+                    self.test_images = 0;
                     self.test_etape = 3;
                 } else {
                     self.test_etape = 4;
                 }
             }
-            3 => {}
+            3 => {
+                self.test_images += 1;
+                if let Some(img) = capture_recue(ctx) {
+                    enregistrer(&img, self.capture_journal.as_ref().unwrap());
+                    self.test_etape = 4;
+                } else if self.test_images > 5 && (ctx.screen_rect().width() - 540.0).abs() < 1.0 {
+                    ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot(Default::default()));
+                } else if self.test_images > 100 {
+                    self.test_etape = 4;
+                }
+            }
             _ => {
                 self.l.ecrire_journal();
                 let code = if p.pret && !p.erreur && p.en_ligne == 1 { 0 } else { 1 };
